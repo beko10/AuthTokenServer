@@ -12,7 +12,7 @@ public interface IAuthenticationService
     
     Task<IResult> RevokeRefreshToken(string refreshToken);
 
-    Task<IDataResult<ClientTokenDto>> CreateTokenByClient(ClientLoginDto clientLoginDto);
+    IDataResult<ClientTokenDto> CreateTokenByClient(ClientLoginDto clientLoginDto);
 
 
 }

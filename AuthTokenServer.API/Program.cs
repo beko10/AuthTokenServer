@@ -11,6 +11,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.Configure<CustomTokenOption>(builder.Configuration.GetSection("TokenOption"));
+builder.Services.Configure<Client>(builder.Configuration.GetSection("Clients"));
 
 
 var app = builder.Build();
@@ -29,3 +30,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+

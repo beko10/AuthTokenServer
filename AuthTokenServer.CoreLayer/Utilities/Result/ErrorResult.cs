@@ -2,7 +2,7 @@
 
 public class ErrorResult:Result
 {
-    public ErrorResult(bool isSuccess,string message):base(false,message)
+    public ErrorResult(string message):base(false,message)
     {
         
     }
