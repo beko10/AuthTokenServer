@@ -6,6 +6,6 @@ namespace AuthTokenServer.BusinessLayer.Abstract;
 
 public interface ITokenService
 {
-    TokenDto CreateToken(AppUser user);
+    Task<TokenDto> CreateTokenAsync(AppUser user);
     ClientTokenDto CreateClientToken(Client client);
 }

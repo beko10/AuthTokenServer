@@ -4,5 +4,5 @@ namespace AuthTokenServer.EntityLayer.Entities;
 
 public class AppUser:IdentityUser
 {
-    public string City { get; set; } = null!;   
+    public string? City { get; set; }  
 }

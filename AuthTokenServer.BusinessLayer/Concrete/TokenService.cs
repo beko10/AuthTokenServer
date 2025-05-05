@@ -35,8 +35,10 @@ public class TokenService : ITokenService // Token servisinin ITokenService aray
     }
 
     // Kullanıcı için JWT claim'lerini oluşturan private metot
-    private IEnumerable<Claim> GetClaim(AppUser user, List<string> audinces)
+    private async Task<IEnumerable<Claim>> GetClaim(AppUser user, List<string> audinces)
     {
+
+        var userRoles = await _userManager.GetRolesAsync(user); // Kullanıcının rollerini alır.
         // Kullanıcıya ait claim bilgilerini liste olarak oluşturur.
         var userList = new List<Claim>()
        {
@@ -46,9 +48,14 @@ public class TokenService : ITokenService // Token servisinin ITokenService aray
            new Claim(JwtRegisteredClaimNames.Jti,Guid.NewGuid().ToString()) // JWT'nin benzersiz ID'si
        };
 
+        // Kullanıcının rollerini claim'lere ekler.
+        userList.AddRange(userRoles.Select(x => new Claim(ClaimTypes.Role, x)));
+
         // Gelen audience bilgilerini claim'lere ekler.
         userList.AddRange(audinces.Select(x => new Claim(JwtRegisteredClaimNames.Aud, x)));
-        return userList; // Claim listesi döndürülür.
+
+        // Kullanıcıya ait claim bilgilerini döndürür.
+        return userList; 
     }
 
     // Client uygulaması için JWT claim'lerini oluşturan private metot
@@ -71,12 +78,12 @@ public class TokenService : ITokenService // Token servisinin ITokenService aray
     public ClientTokenDto CreateClientToken(Client client)
     {
         var accessTokenExpiration = DateTime.Now.AddMinutes(_customTokenOption.AccessTokenExpiration); // Token son kullanma tarihini hesaplar.
-        var securityKey = SignInService.GetSymmetricSecurityKey(_customTokenOption.SecurityKey); // Simetrik güvenlik anahtarını oluşturur.
+        var securityKey = SignService.GetSymmetricSecurityKey(_customTokenOption.SecurityKey); // Simetrik güvenlik anahtarını oluşturur.
         SigningCredentials signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256); // Token'ı imzalamak için kimlik bilgilerini oluşturur.
 
         // JWT token nesnesini oluşturur ve yapılandırır.
         JwtSecurityToken jwtSecurityToken = new JwtSecurityToken(
-            issuer: _customTokenOption.Issure, // Token'ı oluşturan uygulama.
+            issuer: _customTokenOption.Issuer, // Token'ı oluşturan uygulama.
             signingCredentials: signingCredentials, // Token imza bilgisi.
             expires: accessTokenExpiration, // Token son kullanma tarihi.
             claims: GetClaimsByClient(client)); // Client claim bilgileri.
@@ -95,20 +102,23 @@ public class TokenService : ITokenService // Token servisinin ITokenService aray
     }
 
     // Kullanıcı için token oluşturan public metot
-    public TokenDto CreateToken(AppUser user)
+    public async Task<TokenDto> CreateTokenAsync(AppUser user)
     {
         var accessTokenExpiration = DateTime.Now.AddMinutes(_customTokenOption.AccessTokenExpiration); // Token son kullanma tarihini hesaplar.
+
         var refreshTokenExpiration = DateTime.Now.AddMinutes(_customTokenOption.RefreshTokenExpiration); // Refresh token son kullanma tarihi.
-        var securityKey = SignInService.GetSymmetricSecurityKey(_customTokenOption.SecurityKey); // Simetrik güvenlik anahtarını oluşturur.
+
+        var securityKey = SignService.GetSymmetricSecurityKey(_customTokenOption.SecurityKey); // Simetrik güvenlik anahtarını oluşturur.
+
         SigningCredentials signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256); // Token'ı imzalamak için kimlik bilgilerini oluşturur.
 
         // JWT token nesnesini oluşturur ve yapılandırır.
         JwtSecurityToken jwtSecurityToken = new JwtSecurityToken(
-            issuer: _customTokenOption.Issure, // Token'ı oluşturan uygulama.
+            issuer: _customTokenOption.Issuer, // Token'ı oluşturan uygulama.
             expires: accessTokenExpiration, // Token son kullanma tarihi.
             signingCredentials: signingCredentials, // Token imza bilgisi.
             notBefore: DateTime.Now, // Token'ın geçerli olmaya başladığı zaman.
-            claims: GetClaim(user, _customTokenOption.Audience)); // Kullanıcı claim bilgileri.
+            claims: await GetClaim(user, _customTokenOption.Audience)); // Kullanıcı claim bilgileri.
 
         var jwtHandler = new JwtSecurityTokenHandler(); // JWT handler oluşturulur.
         var token = jwtHandler.WriteToken(jwtSecurityToken); // Token'ı string formatına çevirir.
@@ -124,4 +134,5 @@ public class TokenService : ITokenService // Token servisinin ITokenService aray
 
         return TokenDto; // DTO nesnesini döndürür.
     }
+
 }

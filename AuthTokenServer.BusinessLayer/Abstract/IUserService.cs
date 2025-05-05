@@ -5,6 +5,7 @@ namespace AuthTokenServer.BusinessLayer.Abstract;
 
 public interface IUserService
 {
-    Task<IDataResult<AppUserDto>> CreateUserAsync(AppUserDto user);
+    Task<IDataResult<AppUserDto>> CreateUserAsync(CreateUserDto user);
     Task<IDataResult<AppUserDto>> GetUserByUserNameAsync(string userName);
+    Task<Result> CreateUserRoles(string id);
 }

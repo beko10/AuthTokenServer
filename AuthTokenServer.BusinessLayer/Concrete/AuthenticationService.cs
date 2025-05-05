@@ -3,6 +3,7 @@ using AuthTokenServer.CoreLayer.Configuration;
 using AuthTokenServer.CoreLayer.DataAccessLayer.Abstract;
 using AuthTokenServer.CoreLayer.DataAccessLayer.UnitOfWork;
 using AuthTokenServer.CoreLayer.Utilities.Result;
+using AuthTokenServer.DataAccessLayer.Abstract;
 using AuthTokenServer.EntityLayer.DTOs;
 using AuthTokenServer.EntityLayer.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -16,16 +17,16 @@ public class AuthenticationService : IAuthenticationService
     private readonly List<Client> _clients; // Client bilgilerini tutan liste.
     private readonly IUnitOfWork _unitOfWork; // Veritabanı işlemlerini yönetmek için UnitOfWork arayüzü.
     private readonly UserManager<AppUser> _userManager; // Kullanıcı işlemleri için Identity UserManager.
-    private readonly IGenericRepository<UserRefreshToken> _userRefreshTokenService; // UserRefreshToken tablosu için genel repository.
+    private readonly IUserRefreshTokenRepositories _userRefreshTokenRepositories;  // UserRefreshToken tablosu için genel repository.
     private readonly ITokenService _tokenService; // Token oluşturma işlemleri için servis.
 
-    public AuthenticationService(IOptions<List<Client>> clients, IUnitOfWork unitOfWork, UserManager<AppUser> userManager, IGenericRepository<UserRefreshToken> userRefreshTokenService, ITokenService tokenService)
+    public AuthenticationService(IOptions<List<Client>> clients, IUnitOfWork unitOfWork, UserManager<AppUser> userManager, ITokenService tokenService, IUserRefreshTokenRepositories userRefreshTokenRepositories)
     {
         _clients = clients.Value; // Dependency Injection ile gelen client bilgilerini ayarla.
         _unitOfWork = unitOfWork; // Dependency Injection ile gelen UnitOfWork nesnesini ayarla.
         _userManager = userManager; // Dependency Injection ile gelen UserManager nesnesini ayarla.
-        _userRefreshTokenService = userRefreshTokenService; // Dependency Injection ile gelen repository nesnesini ayarla.
         _tokenService = tokenService; // Dependency Injection ile gelen TokenService nesnesini ayarla.
+        _userRefreshTokenRepositories = userRefreshTokenRepositories;// Dependency Injection ile gelen repository nesnesini ayarla.
     }
 
     public async Task<IDataResult<TokenDto>> CreateTokenAsync(LoginDto loginDto)
@@ -41,24 +42,24 @@ public class AuthenticationService : IAuthenticationService
             return new ErrorDataResult<TokenDto>("Email or Password wrong...");
         }
 
-        var token = _tokenService.CreateToken(user); // Kullanıcı için bir token oluştur.
+        var token = await _tokenService.CreateTokenAsync(user); // Kullanıcı için bir token oluştur.
 
-        var userRefreshToken = await _userRefreshTokenService.Where(x => x.UserId == user.Id).SingleOrDefaultAsync(); // Kullanıcının refresh token'ını bul.
+        var userRefreshToken = await _userRefreshTokenRepositories.Where(x => x.UserId == user.Id).SingleOrDefaultAsync(); // Kullanıcının refresh token'ını bul.
 
         if (userRefreshToken == null) // Eğer refresh token yoksa yeni bir refresh token oluştur.
         {
             var newUserRefreshToken = new UserRefreshToken
             {
                 UserId = user.Id,
-                RefreshToken = token.RefreshToken,
-                Expiration = token.RefreshTokenExpiration
+                RefreshToken =  token.RefreshToken,
+                Expiration =  token.RefreshTokenExpiration
             };
-            await _userRefreshTokenService.Create(newUserRefreshToken); // Yeni refresh token'ı veritabanına kaydet.
+            await _userRefreshTokenRepositories.CreateAsync(newUserRefreshToken); // Yeni refresh token'ı veritabanına kaydet.
         }
         else // Eğer refresh token varsa, mevcut olanı güncelle.
         {
-            userRefreshToken.Expiration = token.RefreshTokenExpiration;
-            userRefreshToken.RefreshToken = token.RefreshToken;
+            userRefreshToken.Expiration =  token.RefreshTokenExpiration;
+            userRefreshToken.RefreshToken =  token.RefreshToken;
         }
 
         await _unitOfWork.SaveChangesAsync(); // Değişiklikleri veritabanına kaydet.
@@ -79,7 +80,7 @@ public class AuthenticationService : IAuthenticationService
 
     public async Task<IDataResult<TokenDto>> CreateTokenByRefreshToken(string refreshToken)
     {
-        var hasRefreshToken = await _userRefreshTokenService.Where(x => x.RefreshToken == refreshToken).SingleOrDefaultAsync(); // Refresh token'ı bul.
+        var hasRefreshToken = await _userRefreshTokenRepositories.Where(x => x.RefreshToken == refreshToken).SingleOrDefaultAsync(); // Refresh token'ı bul.
 
         if (hasRefreshToken == null) // Eğer refresh token bulunamazsa hata dön.
         {
@@ -93,7 +94,7 @@ public class AuthenticationService : IAuthenticationService
             return new ErrorDataResult<TokenDto>("User not found...");
         }
 
-        var tokenDto = _tokenService.CreateToken(user); // Kullanıcı için yeni bir token oluştur.
+        var tokenDto = await _tokenService.CreateTokenAsync(user); // Kullanıcı için yeni bir token oluştur.
 
         hasRefreshToken.RefreshToken = tokenDto.RefreshToken; // Refresh token'ı güncelle.
         hasRefreshToken.Expiration = tokenDto.RefreshTokenExpiration;
@@ -105,14 +106,14 @@ public class AuthenticationService : IAuthenticationService
 
     public async Task<IResult> RevokeRefreshToken(string refreshToken)
     {
-        var hasRefreshToken = await _userRefreshTokenService.Where(x => x.RefreshToken == refreshToken).SingleOrDefaultAsync(); // Refresh token'ı bul.
+        var hasRefreshToken = await _userRefreshTokenRepositories.Where(x => x.RefreshToken == refreshToken).SingleOrDefaultAsync(); // Refresh token'ı bul.
 
         if (hasRefreshToken == null) // Eğer refresh token bulunamazsa hata dön.
         {
             return new ErrorResult("Refresh token not found...");
         }
 
-        _userRefreshTokenService.Delete(hasRefreshToken); // Refresh token'ı sil.
+        _userRefreshTokenRepositories.Delete(hasRefreshToken); // Refresh token'ı sil.
         await _unitOfWork.SaveChangesAsync(); // Değişiklikleri veritabanına kaydet.
         return new SuccessDataResult<TokenDto>("Refresh token deleted successfully..."); // Başarı mesajı dön.
     }

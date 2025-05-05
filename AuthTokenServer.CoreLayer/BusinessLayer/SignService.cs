@@ -3,7 +3,7 @@ using System.Text;
 
 namespace AuthTokenServer.BusinessLayer.Concrete;
 
-public static class SignInService
+public static class SignService
 {
     public static SecurityKey GetSymmetricSecurityKey(string securityKey)
     {

@@ -5,8 +5,8 @@ using System.Linq.Expressions;
 
 namespace AuthTokenServer.CoreLayer.DataAccessLayer.Concrete;
 
-public class GenericRepository<TContext, TEntity> : IGenericRepository<TEntity>
-where TContext : DbContext, new()
+public class GenericRepository<TEntity, TContext> : IGenericRepository<TEntity>
+where TContext : DbContext
 where TEntity : BaseEntity
 {
     private readonly TContext _context;
@@ -14,7 +14,7 @@ where TEntity : BaseEntity
     public GenericRepository(TContext context)
     {
         _context = context;
-        _dbSet = _context.Set<TEntity>();   
+        _dbSet = _context.Set<TEntity>();
     }
 
     public IQueryable<TEntity> GetAll(bool track = true)
@@ -44,7 +44,7 @@ where TEntity : BaseEntity
         }
         return await query.FirstOrDefaultAsync(x => x.Id == id);
     }
-    public async Task Create(TEntity entity)
+    public async Task CreateAsync(TEntity entity)
     {
         await _dbSet.AddAsync(entity);
     }

@@ -1,6 +1,8 @@
-﻿namespace AuthTokenServer.EntityLayer.Entities;
+﻿using AuthTokenServer.CoreLayer.EntityLayer;
 
-public class UserRefreshToken
+namespace AuthTokenServer.EntityLayer.Entities;
+
+public class UserRefreshToken:BaseEntity
 {
     public string UserId { get; set; } = null!;
     public string RefreshToken { get; set; } = null!;
